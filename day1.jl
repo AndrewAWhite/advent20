@@ -31,7 +31,7 @@ Of course, your expense report is much larger. Find the two entries that sum to 
 
 using DelimitedFiles
 
-function find_factors(source_list)
+function find_2_factors(source_list)
    for i in range(1, length=size(source_list, 1))
         val_i = source_list[i]
         for j in range(i+1, length=size(source_list, 1)-i)
@@ -45,9 +45,41 @@ function find_factors(source_list)
 end
 
 function q1()
-    source_list = vec(readdlm("./input_d1q1.txt"))
-    factors = find_factors(source_list)
+    source_list = vec(readdlm("./input_d1q1.txt", Int64))
+    factors = find_2_factors(source_list)
     return factors[1] * factors[2] 
 end
 
-println(q1())
+#=
+--- Part Two ---
+
+The Elves in accounting are thankful for your help; one of them even offers you a starfish coin they had left over from a past vacation. 
+They offer you a second one if you can find three numbers in your expense report that meet the same criteria.
+
+Using the above example again, the three entries that sum to 2020 are 979, 366, and 675. Multiplying them together produces the answer, 241861950.
+
+In your expense report, what is the product of the three entries that sum to 2020?
+=#
+
+function find_3_factors(source_list)
+    for i in range(1, length=size(source_list, 1))
+         val_i = source_list[i]
+         for j in range(i+1, length=size(source_list, 1)-i)
+            val_j = source_list[j]
+            for k in range(j+1, length=size(source_list, 1)-j)
+                val_k = source_list[k]
+                if val_i + val_j + val_k == 2020
+                    return val_i, val_j, val_k
+                end
+            end
+         end
+    end
+ end
+
+function q2()
+    source_list = vec(readdlm("./input_d1q1.txt", Int64))
+    factors = find_3_factors(source_list)
+    return factors[1] * factors[2]  * factors[3]
+end
+
+println(q2())
