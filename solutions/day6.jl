@@ -94,15 +94,16 @@ For each group, count the number of questions to which everyone answered "yes". 
 =#
 
 function q2()
-    return sum(map(g -> 
+    return sum(map(x-> 
         begin
+            g = [Set(sg) for sg in split(x, "\n")]
             rg = first(g)
             for sg in g
                 rg = intersect(rg, sg)
             end
             length(rg)
         end,
-        map(x -> [Set(g) for g in split(x, "\n")], 
             split(read("data/input_d6q1.txt", String), r"\n\n")
-        )))
+        ))
 end
+
