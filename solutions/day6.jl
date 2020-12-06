@@ -94,23 +94,15 @@ For each group, count the number of questions to which everyone answered "yes". 
 =#
 
 function q2()
-    split_groups = map(
-        x -> split(x, "\n"), 
-        split(read("data/input_d6q1.txt", String), r"\n\n")
-        )
-    result = 0
-    for group in split_groups
-        answers = group[1]
-        for resp in group
-            answers = map(c -> begin 
-                if c in resp
-                    c
-                end
-            end, collect(answers))
-        end
-        result += count(c -> !isnothing(c), answers)
-    end
-    return result
+    return sum(map(g -> 
+        begin
+            rg = first(g)
+            for sg in g
+                rg = intersect(rg, sg)
+            end
+            length(rg)
+        end,
+        map(x -> [Set(g) for g in split(x, "\n")], 
+            split(read("data/input_d6q1.txt", String), r"\n\n")
+        )))
 end
-
-println(q2())
