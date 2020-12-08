@@ -109,7 +109,6 @@ function q2()
         push!(tree, (node[1], node[2]))
         fill_tree(node[2], node[1], parent_to_child, tree)
     end
-    println(tree)
     return sum(t[2] for t in tree)
 end
 
@@ -123,5 +122,3 @@ function fill_tree(mult, key, parent_to_child, tree)
     end
     return collect(fill_tree(mult*node[2], node[1], parent_to_child, tree) for node in nodes)
 end
-
-println(q2())
