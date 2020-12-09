@@ -63,18 +63,10 @@ function follow(instructions, visited, flip)
         end
         visited[i] = true
         if instruction[1] == "nop"
-            if flip == i
-                i += instruction[2]
-            else
-                i += 1
-            end
+            i += flip == i ? instruction[2] : 1
         elseif instruction[1] == "jmp"
-            if flip == i
-                i += 1
-            else
-                i += instruction[2]
-            end
-        elseif instruction[1] == "acc"
+            i += flip == i ? 1 : instruction[2]
+        else
             acc += instruction[2]
             i += 1
         end
