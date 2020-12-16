@@ -164,5 +164,3 @@ function q2()
     end
     return n
 end
-
-println(q2())
