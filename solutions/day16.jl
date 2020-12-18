@@ -187,7 +187,7 @@ function q2()
             end
         end
     end
-    # clear impossible
+    # clear impossible rules
     for ticket in valid_tickets
         for (i, f) in enumerate(ticket)
             for rj in possible_rules[i]
