@@ -15,14 +15,14 @@ of cubes (your puzzle input); the cubes in this region start in the specified ac
 
 The energy source then proceeds to boot up by executing six cycles.
 
-Each cube only ever considers its neighbors: any of the 26 other cubes where any of their coordinates differ by at most 1. For 
-example, given the cube at x=1,y=2,z=3, its neighbors include the cube at x=2,y=2,z=2, the cube at x=0,y=2,z=3, and so on.
+Each cube only ever considers its neighbours: any of the 26 other cubes where any of their coordinates differ by at most 1. For 
+example, given the cube at x=1,y=2,z=3, its neighbours include the cube at x=2,y=2,z=2, the cube at x=0,y=2,z=3, and so on.
 
 During a cycle, all cubes simultaneously change their state according to the following rules:
 
-    If a cube is active and exactly 2 or 3 of its neighbors are also active, the cube remains active. Otherwise, the cube becomes 
+    If a cube is active and exactly 2 or 3 of its neighbours are also active, the cube remains active. Otherwise, the cube becomes 
     inactive.
-    If a cube is inactive but exactly 3 of its neighbors are active, the cube becomes active. Otherwise, the cube remains inactive.
+    If a cube is inactive but exactly 3 of its neighbours are active, the cube becomes active. Otherwise, the cube remains inactive.
 
 The engineers responsible for this experimental energy source would like you to simulate the pocket dimension and determine what 
 the configuration of cubes should be at the end of the six-cycle boot process.
@@ -155,103 +155,73 @@ After the full six-cycle boot process completes, 112 cubes are left in the activ
 Starting with your given initial configuration, simulate six cycles. How many cubes are left in the active state after the sixth cycle?
 =#
 
-function read_input()
-    k = 0
-    points = Dict()
-    neighbours = Dict()
-    for (i, r) in enumerate(readlines("data/input_d17q1.txt"))
-        for (j, p) in enumerate(r)
-            s = get(points, k, Dict())
-            sr = get(s, i, Dict())
-            sr[j] = p
-            s[i] = sr
-            points[k] = s
-            if p == '.'
-                continue
-            end
-            for x in -1:1
-                for y in -1:1
-                    for z in -1:1
-                        if x==0 && y==0 && z==0
-                            continue
-                        end
-                        ns = get(neighbours,k+z,Dict())
-                        nr = get(ns, i+x, Dict())
-                        nr[j+y] = get(nr, j+y, 0) + 1
-                        ns[i+x] = nr
-                        neighbours[k+z] = ns
-                    end
-                end
-            end
-        end
-    end
-    return points, neighbours
-end
+using IterTools
+using Base.Cartesian
 
-function step_generation(points, neighbours)
-    nwpoints = Dict()
-    nwneighbours = Dict()
-    for (z, ns) in neighbours
-        ps = get(points, z, Dict())
-        nwps = get(nwpoints, z, Dict())
-        for (x, nr) in ns
-            nwpr = get(nwps, x, Dict())
-            pr = get(ps, x, Dict())
-            for (y, nc) in nr
-                pp = get(pr, y, '.')
-                d = 0
-                if pp == '.' && nc == 3
-                    nwpr[y] = '#'
-                    d = 1
-                elseif pp == '#' && !(nc==2 || nc==3)
-                    nwpr[y] = '.'
-                    d = -1
-                else
-                    nwpr[y] = pp
-                end
-                if nwpr[y] != '#'
+
+function read_input()
+    input = readlines("data/input_d17q1.txt")
+    w = length(input[1])
+    h = length(input)
+    points = fill('.', w + 14, h + 14, 15)
+    neighbours = fill(0, w+16, h+16, 17)
+    x0 = 7
+    y0 = 7
+    z0 = 7
+    for (i, line) in enumerate(input)
+        zpos = 0 + z0
+        for (j, c) in enumerate(line)
+            xpos = j + x0
+            ypos = i + y0
+            points[xpos, ypos, zpos] = c
+            if c != '#' continue end
+            dvs = [xpos, ypos, zpos]
+            for dims in unique(subsets(repeat([-1, 0, 1], 3), 3))
+                if all(d -> d==0, dims)
                     continue
                 end
-                for k in -1:1
-                    for i in -1:1
-                        for j in -1:1
-                            if i==0 && j==0 && k==0
-                                continue
-                            end
-                            nwns = get(nwneighbours,k+z,Dict())
-                            nwnr = get(nwns, i+x, Dict())
-                            nwnr[j+y] = get(nwnr, j+y, 0) + 1
-                            nwns[i+x] = nwnr
-                            nwneighbours[k+z] = nwns
-                        end
-                    end           
-                end
+                neighbours[xpos+dims[1], ypos+dims[2], zpos+dims[3]] += 1
             end
-            nwps[x] = nwpr
         end
-        nwpoints[z] = nwps
     end
-    return nwpoints, nwneighbours
+    return points, neighbours, ((x0-1, x0+w+1), (y0-1, y0+h+1), (z0-1, z0+1))
 end
 
+function step_gen(points, neighbours, bounds)
+    newpoints = fill('.', size(points))
+    newneighbours = fill(0, size(neighbours))
+    for x in bounds[1][1]:bounds[1][2]
+        for y in bounds[2][1]:bounds[2][2]
+            for z in bounds[3][1]:bounds[3][2]
+                pp = points[x, y, z]
+                nc = neighbours[x, y, z]
+                np = pp
+                if pp == '.' && nc == 3
+                    np = '#'
+                elseif pp == '#' && !(nc==2 || nc==3)
+                    np = '.'
+                end
+                newpoints[x, y, z] = np
+                if np != '#' continue end
+                for dims in unique(subsets(repeat([-1, 0, 1], 3), 3))
+                    if all(d -> d==0, dims)
+                        continue
+                    end
+                    newneighbours[x+dims[1], y+dims[2], z+dims[3]] += 1
+                end
+            end
+        end
+    end
+    newbounds = ((bounds[1][1]-1, bounds[1][2]+1),(bounds[2][1]-1, bounds[2][2]+1),(bounds[3][1]-1, bounds[3][2]+1))
+    return newpoints, newneighbours, newbounds
+end
 
 function q1()
-    points, neighbors = read_input()
+    points, neighbours, bounds = read_input()
     for i in 1:6
-        points, neighbors = step_generation(points, neighbors)
+        points, neighbours, bounds = step_gen(points, neighbours, bounds)  
     end
-    count = 0
-    for s in values(points)
-        for r in values(s)
-            for p in values(r)
-                if p != '#'
-                    continue
-                end
-                count += 1
-            end
-        end
-    end
-    return count
+    return count(p -> p=='#', points)
 end
 
 #=
@@ -263,11 +233,11 @@ not three.
 The pocket dimension contains an infinite 4-dimensional grid. At every integer 4-dimensional coordinate (x,y,z,w), there exists a single cube (really, a hypercube) which is still 
 either active or inactive.
 
-Each cube only ever considers its neighbors: any of the 80 other cubes where any of their coordinates differ by at most 1. For example, given the cube at x=1,y=2,z=3,w=4, 
-its neighbors include the cube at x=2,y=2,z=3,w=3, the cube at x=0,y=2,z=3,w=4, and so on.
+Each cube only ever considers its neighbours: any of the 80 other cubes where any of their coordinates differ by at most 1. For example, given the cube at x=1,y=2,z=3,w=4, 
+its neighbours include the cube at x=2,y=2,z=3,w=3, the cube at x=0,y=2,z=3,w=4, and so on.
 
 The initial state of the pocket dimension still consists of a small flat region of cubes. Furthermore, the same rules for cycle updating still apply: during each cycle, consider 
-the number of active neighbors of each cube.
+the number of active neighbours of each cube.
 
 For example, consider the same initial state as in the example above. Even though the pocket dimension is 4-dimensional, this initial state represents a small 2-dimensional slice of it. 
 (In particular, this initial state defines a 3x3x1x1 region of the 4-dimensional space.)
@@ -512,3 +482,73 @@ After the full six-cycle boot process completes, 848 cubes are left in the activ
 Starting with your given initial configuration, simulate six cycles in a 4-dimensional space. How many cubes are left in the active state after the sixth cycle?
 =#
 
+function read_input_q2()
+    input = readlines("data/input_d17q1.txt")
+    wdth = length(input[1])
+    hgt = length(input)
+    points = fill('.', wdth + 14, hgt + 14, 15, 15)
+    neighbours = fill(0, wdth+16, hgt+16, 17, 17)
+    x0 = 7
+    y0 = 7
+    z0 = 8
+    w0 = 8
+    for (i, line) in enumerate(input)
+        zpos = 0 + z0
+        wpos = 0 + w0
+        for (j, c) in enumerate(line)
+            xpos = j + x0
+            ypos = i + y0
+            points[xpos, ypos, zpos, wpos] = c
+            if c != '#' continue end
+            dvs = [xpos, ypos, zpos, wpos]
+            for dims in unique(subsets(repeat([-1, 0, 1], 4), 4))
+                if all(d -> d==0, dims)
+                    continue
+                end
+                neighbours[xpos+dims[1], ypos+dims[2], zpos+dims[3], wpos+dims[4]] += 1
+            end
+        end
+    end
+    return points, neighbours, ((x0-1, x0+wdth+1), (y0-1, y0+hgt+1), (z0-1, z0+1), (w0-1, w0+1))
+end
+
+function step_gen_q2(points, neighbours, bounds)
+    newpoints = fill('.', size(points))
+    newneighbours = fill(0, size(neighbours))
+    for x in bounds[1][1]:bounds[1][2]
+        for y in bounds[2][1]:bounds[2][2]
+            for z in bounds[3][1]:bounds[3][2]
+                for w in bounds[4][1]:bounds[4][2]
+                    pp = points[x, y, z, w]
+                    nc = neighbours[x, y, z, w]
+                    np = pp
+                    if pp == '.' && nc == 3
+                        np = '#'
+                    elseif pp == '#' && !(nc==2 || nc==3)
+                        np = '.'
+                    end
+                    newpoints[x, y, z, w] = np
+                    if np != '#' continue end
+                    for dims in unique(subsets(repeat([-1, 0, 1], 4), 4))
+                        if all(d -> d==0, dims)
+                            continue
+                        end
+                        newneighbours[x+dims[1], y+dims[2], z+dims[3],w+dims[4]] += 1
+                    end
+                end
+            end
+        end
+    end
+    newbounds = ((bounds[1][1]-1, bounds[1][2]+1),(bounds[2][1]-1, bounds[2][2]+1),(bounds[3][1]-1, bounds[3][2]+1), (bounds[4][1]-1, bounds[4][2]+1))
+    return newpoints, newneighbours, newbounds
+end
+
+function q2()
+    points, neighbours, bounds = read_input_q2()
+    for i in 1:6
+        points, neighbours, bounds = step_gen_q2(points, neighbours, bounds)  
+    end
+    return count(p -> p=='#', points)
+end
+
+println(q2())
