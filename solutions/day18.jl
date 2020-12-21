@@ -213,3 +213,6 @@ function q2()
     end
     return sum
 end
+
+
+@time q2()
