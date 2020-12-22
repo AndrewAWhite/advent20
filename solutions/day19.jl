@@ -69,20 +69,16 @@ How many messages completely match rule 0?
 
 function parse_rule(rule, rules)
     basepat = r"\"(a|b)\""
-    #println("rule $rule")
     basematch = match(basepat, rule)
     if !isnothing(basematch) && basematch.match == rule
         return basematch.captures[1]
     end
     orsplit = split(rule, "|")
     if length(orsplit) > 1
-        return join([
-            "(",
+        return join(["(", join([
             parse_rule(join(orsplit[1:convert(Int64, floor(length(orsplit)/2))]), rules),
-            "|",
-            parse_rule(join(orsplit[convert(Int64,floor(length(orsplit)/2))+1:end]), rules),
-            ")"
-        ])
+            parse_rule(join(orsplit[convert(Int64,floor(length(orsplit)/2))+1:end]), rules)
+        ], "|"), ")"])
     end
     singlepat = r"([0-9]+)"
     caps = map(c->c.match, eachmatch(singlepat, rule))
@@ -108,10 +104,10 @@ function q1()
     input = read_input()
     maxlen = maximum(l->length(l), input)
     rules = read_rules()
-    rule = Regex(parse_rule(rules["0"], rules))
+    rule = parse_rule(rules["0"], rules)
     matchcount = 0
     for line in read_input()
-        m = match(rule, line)
+        m = match(Regex(rule), line)
         if !isnothing(m) && m.match == line
             matchcount +=1
         end
@@ -207,37 +203,81 @@ However, after updating rules 8 and 11, a total of 12 messages match:
 After updating rules 8 and 11, how many messages completely match rule 0?
 =#
 
+function follow(rules, rule, li, s)
+    li = [l for l in li if l < length(s)+1]
+    nli = []
+    
+    
+    if rule == "42 | 42 8"
+        for i in li
+            fli = follow(rules, "42", [i], s)
+            while length(fli) > 0
+                for fi in fli
+                    push!(nli, fi)
+                end
+                fli = follow(rules, "42", [maximum(fli)], s)
+            end
+        end  
+        return nli
+    end
+
+    if rule == "42 31 | 42 11 31"
+        # build pattern that matches "42{n} 31{n}" up to n = half length of the test string
+        patterns = []
+        for j in 1:convert(Int64,floor(length(s)/2))
+            push!(patterns, join([join(repeat("42 ", j)), join(repeat("31 ", j))]))
+        end
+        r = join(patterns, "|")
+        fli = follow(rules, r, li, s)
+        return fli
+    end
+
+    basepat = r"\"(a|b)\""
+    basematch = match(basepat, rule)
+    if !isnothing(basematch) && basematch.match == rule
+        for i in li
+            if s[i] == rule[2]
+                push!(nli, i+1)
+            end
+        end
+        return nli
+    end
+    orsplit = split(rule, "|")
+    if length(orsplit) > 1
+        for i in li
+            for r in orsplit
+                fli = follow(rules, r, [i], s)
+                if length(fli) > 0
+                    for nfli in fli
+                        push!(nli, nfli)
+                    end
+                end
+            end
+        end
+        return nli
+    end
+    fli = deepcopy(li)
+    matches = collect(eachmatch(r"([0-9]+)", rule))
+    for mi in eachindex(matches)
+        fli = follow(rules, rules[matches[mi].match], fli, s)
+    end
+    return fli
+end
+
 function q2()
     input = read_input()
     maxlen = maximum(l->length(l), input)
     rules = read_rules()
-    rule0 = parse_rule(rules["0"], rules)
-    rule8 = parse_rule(rules["8"], rules)
-    rule11 = parse_rule(rules["11"], rules)
-    rule42 = parse_rule(rules["42"], rules)
-    rule31 = parse_rule(rules["31"], rules)
-    rules = [Regex(rule0)]
-    for i in 1:6
-        push!(rules, Regex(replace(rule0, rule8=>join(repeat(rule8, i)))))
-        for j in 1:6
-            push!(rules, Regex(replace(replace(rule0, rule8=>join(repeat(rule8, i))), rule11=>join([join(repeat(rule42, j)), join(repeat(rule31, j))]))))
+    rules["8"] = "42 | 42 8"
+    rules["11"] = "42 31 | 42 11 31"
+    mcount = 0
+    for line in input
+        li = follow(rules, rules["0"], [1], line)
+        if any(i -> i>length(line), li)
+            mcount += 1
         end
-        push!(rules, Regex(replace(rule0, rule11=>join([join(repeat(rule42, i)), join(repeat(rule31, i))]))))
     end
-    matchcount = 0
-    for line in read_input()
-        outerbreak = false
-        for rule in rules
-            m = match(rule, line)
-            if !isnothing(m) && m.match == line
-                matchcount +=1
-                outerbreak = true
-                break
-            end
-        end
-        if outerbreak continue end
-    end
-    return matchcount
+    return mcount
 end
 
 println(q2())
