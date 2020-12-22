@@ -69,6 +69,7 @@ How many messages completely match rule 0?
 
 function parse_rule(rule, rules)
     basepat = r"\"(a|b)\""
+    #println("rule $rule")
     basematch = match(basepat, rule)
     if !isnothing(basematch) && basematch.match == rule
         return basematch.captures[1]
@@ -84,43 +85,8 @@ function parse_rule(rule, rules)
         ])
     end
     singlepat = r"([0-9]+)"
-    return join(parse_rule(rules[cap.match], rules) for cap in eachmatch(singlepat, rule))
-    # singlematch = match(singlepat, rule)
-    # if !isnothing(singlematch) && singlematch.match == rule
-    #     return parse_rule(rules[singlematch.captures[1]], rules)
-    # end
-    # combipat = r"([0-9]+)\s([0-9]+)"
-    # combimatch = match(combipat, rule)
-    # if !isnothing(combimatch) && combimatch.match == rule
-    #     return join([
-    #         parse_rule(rules[combimatch.captures[1]], rules),
-    #         parse_rule(rules[combimatch.captures[2]], rules)
-    #     ])
-    # end
-    # orpat1 = r"([0-9]+) \| ([0-9]+)"
-    # ormatch1 = match(orpat1, rule)
-    # if !isnothing(ormatch1) && ormatch1.match == rule
-    #     return join([
-    #         "(",
-    #         parse_rule(rules[ormatch1.captures[1]], rules), 
-    #         "|", 
-    #         parse_rule(rules[ormatch1.captures[2]], rules),
-    #         ")"
-    #     ])
-    # end
-    # orpat2 = r"([0-9]+) ([0-9]+) \| ([0-9]+) ([0-9]+)"
-    # ormatch2 = match(orpat2, rule)
-    # if !isnothing(ormatch2) && ormatch2.match == rule
-    #     return join([
-    #         "(",
-    #         parse_rule(rules[ormatch2.captures[1]], rules),
-    #         parse_rule(rules[ormatch2.captures[2]], rules), 
-    #         "|", 
-    #         parse_rule(rules[ormatch2.captures[3]], rules),
-    #         parse_rule(rules[ormatch2.captures[4]], rules),
-    #         ")"
-    #     ])
-    # end
+    caps = map(c->c.match, eachmatch(singlepat, rule))
+    return join(map(cap->parse_rule(rules[cap], rules), caps))
     throw("no match for: $rule")
 end
 
@@ -129,7 +95,6 @@ function read_rules()
     lines = lines[1:findfirst(l -> l=="", lines)-1]
     lines = map(l -> split(l, ": "), lines)
     rules = Dict(sp[1]=>sp[2] for sp in lines)
-    rules = Dict(kv[1]=>parse_rule(kv[2], rules) for kv in rules)
     return rules
 end
 
@@ -140,8 +105,10 @@ function read_input()
 end
 
 function q1()
+    input = read_input()
+    maxlen = maximum(l->length(l), input)
     rules = read_rules()
-    rule = Regex(rules["0"])
+    rule = Regex(parse_rule(rules["0"], rules))
     matchcount = 0
     for line in read_input()
         m = match(rule, line)
@@ -152,7 +119,7 @@ function q1()
     return matchcount
 end
 
-println(q1())
+#println(q1())
 
 #=
 --- Part Two ---
@@ -239,3 +206,38 @@ However, after updating rules 8 and 11, a total of 12 messages match:
 
 After updating rules 8 and 11, how many messages completely match rule 0?
 =#
+
+function q2()
+    input = read_input()
+    maxlen = maximum(l->length(l), input)
+    rules = read_rules()
+    rule0 = parse_rule(rules["0"], rules)
+    rule8 = parse_rule(rules["8"], rules)
+    rule11 = parse_rule(rules["11"], rules)
+    rule42 = parse_rule(rules["42"], rules)
+    rule31 = parse_rule(rules["31"], rules)
+    rules = [Regex(rule0)]
+    for i in 1:6
+        push!(rules, Regex(replace(rule0, rule8=>join(repeat(rule8, i)))))
+        for j in 1:6
+            push!(rules, Regex(replace(replace(rule0, rule8=>join(repeat(rule8, i))), rule11=>join([join(repeat(rule42, j)), join(repeat(rule31, j))]))))
+        end
+        push!(rules, Regex(replace(rule0, rule11=>join([join(repeat(rule42, i)), join(repeat(rule31, i))]))))
+    end
+    matchcount = 0
+    for line in read_input()
+        outerbreak = false
+        for rule in rules
+            m = match(rule, line)
+            if !isnothing(m) && m.match == line
+                matchcount +=1
+                outerbreak = true
+                break
+            end
+        end
+        if outerbreak continue end
+    end
+    return matchcount
+end
+
+println(q2())
